@@ -1,0 +1,107 @@
+import xml.etree.ElementTree as ET
+import uuid
+import random
+import math
+
+input_file = "Mazda787B.xml"
+output_file = "regenerated.xml"
+
+# Parse XML from file
+tree = ET.parse(input_file)
+root = tree.getroot()
+
+# Template for regenerated Sound elements
+template = """<Sound Name="{sound_name}" ID="{sound_id}" ShortID="{sound_short_id}">
+    <PropertyList>
+        <Property Name="IsLoopingEnabled" Type="bool" Value="True"/>
+    </PropertyList>
+    <ReferenceList>
+        <Reference Name="Conversion">
+            <ObjectRef Name="Default Conversion Settings" ID="{{6D1B890C-9826-4384-BF07-C15223E9FB56}}" WorkUnitID="{{85E5CEB6-E4D7-4003-A9DA-3DE3C4DDB4EE}}"/>
+        </Reference>
+        <Reference Name="OutputBus">
+            <ObjectRef Name="Main Audio Bus" ID="{{1514A4D8-1DA6-412A-A17E-75CA0C2149F3}}" WorkUnitID="{{BB97648F-0961-445F-A6FD-4DC61EA3CC4B}}"/>
+        </Reference>
+    </ReferenceList>
+    <ChildrenList>
+        <AudioFileSource Name="{sound_name}" ID="{audio_source_id}">
+            <Language>SFX</Language>
+            <AudioFile>{audio_file_name}</AudioFile>
+            <MediaIDList>
+                <MediaID ID="{media_id}"/>
+            </MediaIDList>
+        </AudioFileSource>
+    </ChildrenList>
+    <ObjectLists>
+				<ObjectList Name="RTPC">
+					<RTPC Name="" ID="{rtpc_pitch_id}" ShortID="{rtpc_pitch_short_id}">
+						<PropertyList>
+							<Property Name="PropertyName" Type="string" Value="Pitch"/>
+						</PropertyList>
+						<ReferenceList>
+							<Reference Name="ControlInput">
+								<ObjectRef Name="RPM" ID="{E5B0C6F5-BD9B-462D-9AFF-9C0CC742CF4B}" WorkUnitID="{3C7A61F0-33B5-402E-8074-3C0ADBF36EF3}"/>
+							</Reference>
+							<Reference Name="Curve">
+								<Custom>
+									<Curve Name="" ID="{curve_pitch_id}">
+										<PropertyList>
+											<Property Name="Flags" Type="int32" Value="65537"/>
+										</PropertyList>
+										<PointList>
+											{pitch_points}
+										</PointList>
+									</Curve>
+								</Custom>
+							</Reference>
+						</ReferenceList>
+					</RTPC>
+				</ObjectList>
+</ObjectLists>
+    <ActiveSourceList>
+        <ActiveSource Name="{sound_name}" ID="{audio_source_id}" Platform="Linked"/>
+    </ActiveSourceList>
+</Sound>"""
+
+output_sounds = []
+
+# Find ALL <Sound> tags in the document, no matter how deep
+for sound in root.findall(".//Sound"):
+    sound_name = sound.get("Name")
+    sound_id = sound.get("ID")
+    sound_short_id = sound.get("ShortID")
+
+    # Some <Sound> might not have AudioFileSource, so check before using
+    audio_source = sound.find("./ChildrenList/AudioFileSource")
+    if audio_source is None:
+        continue  # Skip if no audio source found
+
+    audio_source_id = audio_source.get("ID")
+    audio_file_name = audio_source.findtext("AudioFile")
+    media_id = audio_source.find("./MediaIDList/MediaID").get("ID")
+
+    rtpc_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
+    rtpc_pitch_short_id = random.randint(100_000_000, 999_999_999)
+    curve_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
+    pitch_points = ""
+
+    regenerated = template.format(
+        sound_name=sound_name,
+        sound_id=sound_id,
+        sound_short_id=sound_short_id,
+        audio_source_id=audio_source_id,
+        audio_file_name=audio_file_name,
+        media_id=media_id,
+        rtpc_pitch_id=rtpc_pitch_id,
+        rtpc_pitch_short_id=rtpc_pitch_short_id,
+        curve_pitch_id=curve_pitch_id,
+        pitch_points=''.join(pitch_points)
+    )
+
+    output_sounds.append(regenerated)
+
+# Write regenerated XML
+with open(output_file, "w", encoding="utf-8") as f:
+    f.write("\n\n".join(output_sounds))
+
+print(f"✅ Regenerated XML written to {output_file} with {len(output_sounds)} sounds.")
