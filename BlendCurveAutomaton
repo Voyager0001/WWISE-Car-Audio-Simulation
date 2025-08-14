@@ -1,0 +1,113 @@
+import xml.etree.ElementTree as ET
+
+# --- Configuration ---
+# Input and output file names
+input_file = "Mazda787B.xml"
+output_file = "blend_track_associations.xml"
+
+# Parameters for blend track generation
+# This value will be subtracted from and added to the current RPM
+# to determine the fade-in and fade-out points.
+FADE_DISTANCE = 100
+MIN_RPM=1000
+MAX_RPM=10000
+
+# --- Helper Functions ---
+
+def clamp(value, min_value, max_value):
+    return max(min_value, min(value, max_value))
+
+def get_current_rpm(sound_name):
+    """
+    Derives the 'current RPM' value from a sound file name.
+    - "rpm" -> 1000
+    - "rpm-001" -> 1100
+    - "rpm-080" -> 9000
+    """
+    if sound_name == "rpm":
+        return 1000.0
+    elif sound_name.startswith("rpm-"):
+        try:
+            # Extracts the number from "rpm-xxx"
+            number_part = int(sound_name.split('-')[1])
+            return 1000.0 + (number_part * 100.0)
+        except (ValueError, IndexError):
+            # Fallback for unexpected formats
+            print(f"Warning: Could not parse RPM from '{sound_name}'. Defaulting to 1000.")
+            return 1000.0
+    # Default for any other name format
+    return 1000.0
+
+
+# --- Main Script ---
+
+# Template for the BlendTrackAssoc element.
+# It includes a placeholder for an optional LeftFadingSegmentShape.
+blend_track_template = """<BlendTrackAssoc>
+    <ItemRef Name="{item_name}" ID="{item_id}"/>
+    <CrossfadingInfo>
+        <LeftEdgePos>{left_edge_pos}</LeftEdgePos>
+        <LeftFadingMode>Automatic</LeftFadingMode>{left_fading_shape}
+        <RightEdgePos>{right_edge_pos}</RightEdgePos>
+        <RightFadingMode>Automatic</RightFadingMode>
+        <RightFadingSegmentShape>Exp2</RightFadingSegmentShape>
+    </CrossfadingInfo>
+</BlendTrackAssoc>"""
+
+# This is the specific XML part for the LeftFadingSegmentShape,
+# which is only added for sounds after the first one.
+left_fading_shape_xml = """
+        <LeftFadingSegmentShape>Log2</LeftFadingSegmentShape>"""
+
+# Parse the input XML file
+try:
+    tree = ET.parse(input_file)
+    root = tree.getroot()
+except FileNotFoundError:
+    print(f"Error: Input file '{input_file}' not found.")
+    exit()
+except ET.ParseError:
+    print(f"Error: Could not parse XML from '{input_file}'. Check if it's a valid XML file.")
+    exit()
+
+
+output_blocks = []
+
+
+# Iterate through each identified sound to generate the corresponding blend track
+for sound in root.findall(".//Sound"):
+    item_name = sound.get("Name")
+    item_id = sound.get("ID")
+
+    # Skip if essential attributes are missing
+    if not item_name or not item_id:
+        continue
+
+    # Calculate RPM and edge positions
+    current_rpm = get_current_rpm(item_name)
+    left_edge_pos = clamp(current_rpm - FADE_DISTANCE, MIN_RPM, MAX_RPM)
+    right_edge_pos = clamp(current_rpm + 100 + FADE_DISTANCE, MIN_RPM, MAX_RPM)
+    
+    # The first sound ("rpm") does not have a LeftFadingSegmentShape.
+    # For all others, we add it.
+    left_shape = ""
+    if item_name != "rpm":
+        left_shape = left_fading_shape_xml
+
+    # Populate the template with the extracted and calculated data
+    generated_block = blend_track_template.format(
+        item_name=item_name,
+        item_id=item_id,
+        left_edge_pos=int(left_edge_pos),
+        right_edge_pos=int(right_edge_pos),
+        left_fading_shape=left_shape
+    )
+    
+    output_blocks.append(generated_block)
+
+
+# Write the final generated XML to the output file
+with open(output_file, "w", encoding="utf-8") as f:
+    f.write("\n".join(output_blocks))
+
+print(f"✅ Generated Blend Track Associations written to {output_file} with {len(output_blocks)} blocks.")
