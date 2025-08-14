@@ -65,7 +65,7 @@ def generate_pitch_points(current_rpm, start_rpm, end_rpm, num_between, distance
 
     # Sort points by RPM value
     sorted_x = sorted(list(x_positions))
-    
+
     point_xml_parts = []
     total_points = len(sorted_x)
 
@@ -115,7 +115,8 @@ except ET.ParseError:
 
 
 # Template for regenerated Sound elements
-template = """<Sound Name="{sound_name}" ID="{sound_id}" ShortID="{sound_short_id}">
+template = """
+  <Sound Name="{sound_name}" ID="{sound_id}" ShortID="{sound_short_id}">
     <PropertyList>
         <Property Name="IsLoopingEnabled" Type="bool" Value="True"/>
     </PropertyList>
@@ -153,7 +154,7 @@ template = """<Sound Name="{sound_name}" ID="{sound_id}" ShortID="{sound_short_i
                                     <Property Name="Flags" Type="int32" Value="65537"/>
                                 </PropertyList>
                                 <PointList>
-{pitch_points}
+                                {pitch_points}
                                 </PointList>
                             </Curve>
                         </Custom>
@@ -165,7 +166,7 @@ template = """<Sound Name="{sound_name}" ID="{sound_id}" ShortID="{sound_short_i
     <ActiveSourceList>
         <ActiveSource Name="{sound_name}" ID="{audio_source_id}" Platform="Linked"/>
     </ActiveSourceList>
-</Sound>"""
+  </Sound>"""
 
 output_sounds = []
 
@@ -192,7 +193,7 @@ for sound in root.findall(".//Sound"):
     rtpc_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
     rtpc_pitch_short_id = random.randint(100_000_000, 999_999_999)
     curve_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
-    
+
     # --- Generate the pitch points ---
     current_rpm = get_current_rpm(sound_name)
     pitch_points = generate_pitch_points(
@@ -223,4 +224,4 @@ for sound in root.findall(".//Sound"):
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("\n\n".join(output_sounds))
 
-print(f"✅ Regenerated XML written to {output_file} with {len(output_sounds)} sounds.")
+print(f"Regenerated XML written to {output_file} with {len(output_sounds)} sounds.")
