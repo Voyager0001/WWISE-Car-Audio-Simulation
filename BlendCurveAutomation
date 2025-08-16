@@ -8,7 +8,7 @@ output_file = "blend_track_associations.xml"
 # Parameters for blend track generation
 # This value will be subtracted from and added to the current RPM
 # to determine the fade-in and fade-out points.
-FADE_DISTANCE = 100
+FADE_DISTANCE = 75
 MIN_RPM=1000
 MAX_RPM=10000
 
@@ -24,9 +24,8 @@ def get_current_rpm(sound_name):
     - "rpm-001" -> 1100
     - "rpm-080" -> 9000
     """
-    if sound_name == "rpm":
-        return 1000.0
-    elif sound_name.startswith("rpm-"):
+
+    if sound_name.startswith("OnLoadRPM-"):
         try:
             # Extracts the number from "rpm-xxx"
             number_part = int(sound_name.split('-')[1])
@@ -37,7 +36,6 @@ def get_current_rpm(sound_name):
             return 1000.0
     # Default for any other name format
     return 1000.0
-
 
 # --- Main Script ---
 
@@ -77,37 +75,38 @@ output_blocks = []
 # Iterate through each identified sound to generate the corresponding blend track
 for sound in root.findall(".//Sound"):
     item_name = sound.get("Name")
-    item_id = sound.get("ID")
+    if item_name.startswith("OnLoadRPM-"):
+      item_id = sound.get("ID")
 
-    # Skip if essential attributes are missing
-    if not item_name or not item_id:
-        continue
+      # Skip if essential attributes are missing
+      if not item_name or not item_id:
+          continue
 
-    # Calculate RPM and edge positions
-    current_rpm = get_current_rpm(item_name)
-    left_edge_pos = clamp(current_rpm - FADE_DISTANCE, MIN_RPM, MAX_RPM)
-    right_edge_pos = clamp(current_rpm + 100 + FADE_DISTANCE, MIN_RPM, MAX_RPM)
-    
-    # The first sound ("rpm") does not have a LeftFadingSegmentShape.
-    # For all others, we add it.
-    left_shape = ""
-    if item_name != "rpm":
-        left_shape = left_fading_shape_xml
+      # Calculate RPM and edge positions
+      current_rpm = get_current_rpm(item_name)
+      left_edge_pos = clamp(current_rpm - FADE_DISTANCE, MIN_RPM, MAX_RPM)
+      right_edge_pos = clamp(current_rpm + FADE_DISTANCE, MIN_RPM, MAX_RPM)
 
-    # Populate the template with the extracted and calculated data
-    generated_block = blend_track_template.format(
-        item_name=item_name,
-        item_id=item_id,
-        left_edge_pos=int(left_edge_pos),
-        right_edge_pos=int(right_edge_pos),
-        left_fading_shape=left_shape
-    )
-    
-    output_blocks.append(generated_block)
+      # The first sound ("rpm") does not have a LeftFadingSegmentShape.
+      # For all others, we add it.
+      left_shape = ""
+      if item_name != "rpm":
+          left_shape = left_fading_shape_xml
+
+      # Populate the template with the extracted and calculated data
+      generated_block = blend_track_template.format(
+          item_name=item_name,
+          item_id=item_id,
+          left_edge_pos=int(left_edge_pos),
+          right_edge_pos=int(right_edge_pos),
+          left_fading_shape=left_shape
+      )
+
+      output_blocks.append(generated_block)
 
 
 # Write the final generated XML to the output file
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("\n".join(output_blocks))
 
-print(f"✅ Generated Blend Track Associations written to {output_file} with {len(output_blocks)} blocks.")
+print(f" Generated Blend Track Associations written to {output_file} with {len(output_blocks)} blocks.")
