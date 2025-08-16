@@ -26,9 +26,8 @@ def get_current_rpm(sound_name):
     - "rpm-001" -> 1100
     - "rpm-080" -> 9000
     """
-    if sound_name == "rpm":
-        return 1000.0
-    elif sound_name.startswith("rpm-"):
+
+    if sound_name.startswith("OnLoadRPM-"):
         try:
             # Extracts the number from "rpm-xxx"
             number_part = int(sound_name.split('-')[1])
@@ -173,55 +172,57 @@ output_sounds = []
 # Find ALL <Sound> tags in the document, no matter how deep
 for sound in root.findall(".//Sound"):
     sound_name = sound.get("Name")
-    sound_id = sound.get("ID")
-    sound_short_id = sound.get("ShortID")
+    if sound_name.startswith("OnLoadRPM-"):
+      sound_id = sound.get("ID")
+      sound_short_id = sound.get("ShortID")
 
-    # Some <Sound> might not have AudioFileSource, so check before using
-    audio_source = sound.find("./ChildrenList/AudioFileSource")
-    if audio_source is None:
-        continue  # Skip if no audio source found
+      # Some <Sound> might not have AudioFileSource, so check before using
+      audio_source = sound.find("./ChildrenList/AudioFileSource")
+      if audio_source is None:
+          continue  # Skip if no audio source found
 
-    audio_source_id = audio_source.get("ID")
-    audio_file_name = audio_source.findtext("AudioFile")
-    media_id_element = audio_source.find("./MediaIDList/MediaID")
-    if media_id_element is None:
-        continue # Skip if no MediaID found
+      audio_source_id = audio_source.get("ID")
+      audio_file_name = audio_source.findtext("AudioFile")
+      media_id_element = audio_source.find("./MediaIDList/MediaID")
+      if media_id_element is None:
+          continue # Skip if no MediaID found
 
-    media_id = media_id_element.get("ID")
+      media_id = media_id_element.get("ID")
 
-    # Generate new random IDs for the new elements
-    rtpc_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
-    rtpc_pitch_short_id = random.randint(100_000_000, 999_999_999)
-    curve_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
+      # Generate new random IDs for the new elements
+      rtpc_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
+      rtpc_pitch_short_id = random.randint(100_000_000, 999_999_999)
+      curve_pitch_id = f"{{{str(uuid.uuid4()).upper()}}}"
 
-    # --- Generate the pitch points ---
-    current_rpm = get_current_rpm(sound_name)
-    pitch_points = generate_pitch_points(
-        current_rpm,
-        START_RPM,
-        END_RPM,
-        NUM_POINTS_AROUND_CURRENT,
-        POINT_DISTANCE
-    )
+      # --- Generate the pitch points ---
+      current_rpm = get_current_rpm(sound_name)
+      pitch_points = generate_pitch_points(
+          current_rpm,
+          START_RPM,
+          END_RPM,
+          NUM_POINTS_AROUND_CURRENT,
+          POINT_DISTANCE
+      )
 
-    # Populate the template with all the extracted and generated data
-    regenerated = template.format(
-        sound_name=sound_name,
-        sound_id=sound_id,
-        sound_short_id=sound_short_id,
-        audio_source_id=audio_source_id,
-        audio_file_name=audio_file_name,
-        media_id=media_id,
-        rtpc_pitch_id=rtpc_pitch_id,
-        rtpc_pitch_short_id=rtpc_pitch_short_id,
-        curve_pitch_id=curve_pitch_id,
-        pitch_points=pitch_points
-    )
+      # Populate the template with all the extracted and generated data
+      regenerated = template.format(
+          sound_name=sound_name,
+          sound_id=sound_id,
+          sound_short_id=sound_short_id,
+          audio_source_id=audio_source_id,
+          audio_file_name=audio_file_name,
+          media_id=media_id,
+          rtpc_pitch_id=rtpc_pitch_id,
+          rtpc_pitch_short_id=rtpc_pitch_short_id,
+          curve_pitch_id=curve_pitch_id,
+          pitch_points=pitch_points
+      )
 
-    output_sounds.append(regenerated)
+      output_sounds.append(regenerated)
+
 
 # Write regenerated XML to the output file
 with open(output_file, "w", encoding="utf-8") as f:
     f.write("\n\n".join(output_sounds))
 
-print(f"Regenerated XML written to {output_file} with {len(output_sounds)} sounds.")
+print(f" Regenerated XML written to {output_file} with {len(output_sounds)} sounds.")
