@@ -8,7 +8,7 @@ output_file = "blend_track_associations.xml"
 # Parameters for blend track generation
 # This value will be subtracted from and added to the current RPM
 # to determine the fade-in and fade-out points.
-FADE_DISTANCE = 75
+FADE_DISTANCE = 100
 MIN_RPM=1000
 MAX_RPM=10000
 
